@@ -68,12 +68,23 @@ if __name__ == '__main__':
     parser.add_argument('--results_dir', type=str, default='./results/') # dir you save the prediction files
     parser.add_argument('--api_key', type=str, default='')  # gpt4o key
     parser.add_argument('--api_base', type=str, default='') # gpt4o url base
+
+    parser.add_argument('--use-azure', default=False, action="store_true")
+
     args = parser.parse_args()
     print(args.test_file)
     raw_test_data = read_json(args.test_file)
 
-    openai.api_key = args.api_key
-    openai.api_base = args.api_base
+    if args.use_azure:
+        model_name = os.environ.get("AZURE_OPENAI_DEPLOYMENT")
+        
+        client = AzureOpenAI(
+            api_version="2024-12-01-preview", azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
+            api_key=os.environ.get("AZURE_OPENAI_API_KEY")
+        )
+    else:
+        openai.api_key = args.api_key
+        openai.api_base = args.api_base
 
     strict_acc_scores = {"Type_1": 0, "Type_2": 0, "Type_3": 0, "Type_4": 0, "Type_5": 0}
     strict_acc_counts = {"Type_1": 0, "Type_2": 0, "Type_3": 0, "Type_4": 0, "Type_5": 0}
@@ -163,13 +174,22 @@ if __name__ == '__main__':
             retries = 0
             while retries < max_retries:
                 try:
-                    completion1 = openai.ChatCompletion.create(
-                        model="gpt-4o-2024-08-06",
-                        messages=messages1,
-                        max_tokens=8000,
-                        temperature=0.0,
-                        timeout=150
-                    )
+                    if args.use_azure:
+                        completion1 = client.chat.completions.create(
+                            model=model_name,
+                            messages=messages1,
+                            max_tokens=8000,
+                            temperature=0.0,
+                            timeout=150
+                        )
+                    else:
+                        completion1 = openai.ChatCompletion.create(
+                            model="gpt-4o-2024-08-06",
+                            messages=messages1,
+                            max_tokens=8000,
+                            temperature=0.0,
+                            timeout=150
+                        )
 
                     break  # break if success
                 except Exception as e:
