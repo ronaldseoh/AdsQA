@@ -69,6 +69,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--use-azure', default=False, action="store_true")
 
+    parser.add_argument('--temp-reset', default=False, action="store_true")
+
     args = parser.parse_args()
     print(args.test_file)
     raw_test_data = read_json(args.test_file)
@@ -127,7 +129,7 @@ if __name__ == '__main__':
                     continue
 
                 pred_score = pred_item[0]['score']
-                if pred_score != "":
+                if not args.temp_reset and pred_score != "":
                     gptscore = pred_score.replace('Answer: ', '').strip()
                     pred_answer = pred_item[0]['prediction']
                     if pred_answer is None:
