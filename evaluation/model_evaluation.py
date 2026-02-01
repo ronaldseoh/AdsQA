@@ -66,8 +66,6 @@ if __name__ == '__main__':
     parser.add_argument('--eval_name', type=str, default='readr-step240.json') # prediction file name, e.g., readr-step240.json, qwen2d5-vl-7b.json
     parser.add_argument('--test_file', type=str, default='./testset_groundtruth.json') # ground-truth file path
     parser.add_argument('--results_dir', type=str, default='./results/') # dir you save the prediction files
-    parser.add_argument('--api_key', type=str, default='')  # gpt4o key
-    parser.add_argument('--api_base', type=str, default='') # gpt4o url base
 
     parser.add_argument('--use-azure', default=False, action="store_true")
 
@@ -83,8 +81,8 @@ if __name__ == '__main__':
             api_key=os.environ.get("AZURE_OPENAI_API_KEY")
         )
     else:
-        openai.api_key = args.api_key
-        openai.api_base = args.api_base
+        openai.api_key = os.environ.get("OPENAI_API_KEY")
+        openai.api_base = os.environ.get("OPENAI_API_BASE")
 
     strict_acc_scores = {"Type_1": 0, "Type_2": 0, "Type_3": 0, "Type_4": 0, "Type_5": 0}
     strict_acc_counts = {"Type_1": 0, "Type_2": 0, "Type_3": 0, "Type_4": 0, "Type_5": 0}
