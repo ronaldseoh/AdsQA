@@ -76,13 +76,12 @@ if __name__ == '__main__':
     if args.use_azure:
         model_name = os.environ.get("AZURE_OPENAI_DEPLOYMENT")
         
-        client = AzureOpenAI(
+        client = openai.AzureOpenAI(
             api_version="2024-12-01-preview", azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
             api_key=os.environ.get("AZURE_OPENAI_API_KEY")
         )
     else:
-        openai.api_key = os.environ.get("OPENAI_API_KEY")
-        openai.api_base = os.environ.get("OPENAI_API_BASE")
+        client = openai.OpenAI()
 
     strict_acc_scores = {"Type_1": 0, "Type_2": 0, "Type_3": 0, "Type_4": 0, "Type_5": 0}
     strict_acc_counts = {"Type_1": 0, "Type_2": 0, "Type_3": 0, "Type_4": 0, "Type_5": 0}
@@ -172,22 +171,13 @@ if __name__ == '__main__':
             retries = 0
             while retries < max_retries:
                 try:
-                    if args.use_azure:
-                        completion1 = client.chat.completions.create(
-                            model=model_name,
-                            messages=messages1,
-                            max_tokens=8000,
-                            temperature=0.0,
-                            timeout=150
-                        )
-                    else:
-                        completion1 = openai.ChatCompletion.create(
-                            model="gpt-4o-2024-08-06",
-                            messages=messages1,
-                            max_tokens=8000,
-                            temperature=0.0,
-                            timeout=150
-                        )
+                    completion1 = client.chat.completions.create(
+                        model=model_name if args.use_azure else "gpt-4o-2024-08-06",
+                        messages=messages1,
+                        max_tokens=8000,
+                        temperature=0.0,
+                        timeout=150
+                    )
 
                     break  # break if success
                 except Exception as e:
