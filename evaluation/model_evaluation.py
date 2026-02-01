@@ -81,6 +81,9 @@ if __name__ == '__main__':
             api_key=os.environ.get("AZURE_OPENAI_API_KEY")
         )
     else:
+        if os.environ.get("OPENAI_API_BASE") is not None:
+            openai.base_url = os.environ.get("OPENAI_API_BASE")
+
         client = openai.OpenAI()
 
     strict_acc_scores = {"Type_1": 0, "Type_2": 0, "Type_3": 0, "Type_4": 0, "Type_5": 0}
