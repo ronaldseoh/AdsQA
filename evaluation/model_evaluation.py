@@ -119,7 +119,6 @@ if __name__ == '__main__':
 
             pred_path = os.path.join(args.results_dir, question_id, args.eval_name)
 
-
             if not os.path.exists(pred_path):
                 continue # no found prediction file
             else:
@@ -131,7 +130,7 @@ if __name__ == '__main__':
                     continue
 
                 pred_score = pred_item[0]['score']
-                if not args.temp_reset and pred_score != "":
+                if not (args.temp_reset or args.all_reset) and pred_score != "":
                     gptscore = pred_score.replace('Answer: ', '').strip()
                     pred_answer = pred_item[0]['prediction']
                     if pred_answer is None:
