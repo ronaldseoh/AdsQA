@@ -70,6 +70,8 @@ if __name__ == '__main__':
     parser.add_argument('--use-azure', default=False, action="store_true")
 
     parser.add_argument('--temp-reset', default=False, action="store_true")
+    
+    parser.add_argument('--all-reset', default=False, action="store_true")
 
     args = parser.parse_args()
     print(args.test_file)
@@ -161,86 +163,91 @@ if __name__ == '__main__':
                         relax_acc_counts[typee] += 1
                     continue # the sample has been evaluated before
 
-            
-            pred_answer = pred_item[0]['prediction']
-            if "<answer>" in pred_answer:
-                pred_answer = re.sub(r'(?s).*<answer>\s*(.*?)\s*</answer>.*', r'\1', pred_answer)            
-            if len(pred_answer.split()) > 30:
-                pred_answer = ' '.join(pred_answer.split()[0:30])
+            if not args.all_reset:
+                pred_answer = pred_item[0]['prediction']
+                if "<answer>" in pred_answer:
+                    pred_answer = re.sub(r'(?s).*<answer>\s*(.*?)\s*</answer>.*', r'\1', pred_answer)            
+                if len(pred_answer.split()) > 30:
+                    pred_answer = ' '.join(pred_answer.split()[0:30])
 
-            prompt1 = prompt.format(meta_info=meta_info, question=question,
-                                        golden_answer=gt_answer, response=pred_answer)
-            messages1 = [
-                {"role": "user", "content": prompt1},
-            ]
-            retries = 0
-            while retries < max_retries:
-                try:
-                    completion1 = client.chat.completions.create(
-                        model=model_name if args.use_azure else "gpt-4o-2024-08-06",
-                        messages=messages1,
-                        max_tokens=8000,
-                        temperature=0.0,
-                        timeout=150
-                    )
+                prompt1 = prompt.format(meta_info=meta_info, question=question,
+                                            golden_answer=gt_answer, response=pred_answer)
+                messages1 = [
+                    {"role": "user", "content": prompt1},
+                ]
+                retries = 0
+                while retries < max_retries:
+                    try:
+                        completion1 = client.chat.completions.create(
+                            model=model_name if args.use_azure else "gpt-4o-2024-08-06",
+                            messages=messages1,
+                            max_tokens=8000,
+                            temperature=0.0,
+                            timeout=150
+                        )
 
-                    break  # break if success
-                except Exception as e:
-                    retries += 1
-                    print(f"调用GPT出错，错误信息: {e}. 正在重试 {retries}/{max_retries} 次...")
-                    time.sleep(5)
+                        break  # break if success
+                    except Exception as e:
+                        retries += 1
+                        print(f"调用GPT出错，错误信息: {e}. 正在重试 {retries}/{max_retries} 次...")
+                        time.sleep(5)
 
-            gptscore = completion1.choices[0].message.content
+                gptscore = completion1.choices[0].message.content
 
-            pred_item[0]['score'] = gptscore
+            if args.all_reset:
+                pred_item[0]['score'] = ''
+            else:
+                pred_item[0]['score'] = gptscore
+
             with open(pred_path, 'w') as ff:
                 json.dump(pred_item, ff, indent=4, ensure_ascii=False)
 
-            try:
-                pred_nums += 1
-                gptscore = gptscore.replace('Answer: ', '').strip()
-                if '1' in gptscore:
-                    strict_acc += 1
-                    relaxed_acc += 1
-                elif '0.5' in gptscore:
-                    strict_acc += 0
-                    relaxed_acc += 0.5
-                else:
-                    strict_acc += 0
-                    relaxed_acc += 0
-
-                for typee in question_types:
+            if not args.all_reset:
+                try:
+                    pred_nums += 1
+                    gptscore = gptscore.replace('Answer: ', '').strip()
                     if '1' in gptscore:
-                        strict_acc_scores[typee] += 1
-                        relax_acc_scores[typee] += 1
-
+                        strict_acc += 1
+                        relaxed_acc += 1
                     elif '0.5' in gptscore:
-                        strict_acc_scores[typee] += 0
-                        relax_acc_scores[typee] += 0.5
+                        strict_acc += 0
+                        relaxed_acc += 0.5
+                    else:
+                        strict_acc += 0
+                        relaxed_acc += 0
+
+                    for typee in question_types:
+                        if '1' in gptscore:
+                            strict_acc_scores[typee] += 1
+                            relax_acc_scores[typee] += 1
+
+                        elif '0.5' in gptscore:
+                            strict_acc_scores[typee] += 0
+                            relax_acc_scores[typee] += 0.5
 
 
-                    strict_acc_counts[typee] += 1
-                    relax_acc_counts[typee] += 1
+                        strict_acc_counts[typee] += 1
+                        relax_acc_counts[typee] += 1
 
-                print(f"{question_id}: {gptscore}")
+                    print(f"{question_id}: {gptscore}")
 
-            except Exception as e:
-                print(e)
-                print(f"invalid return: {gptscore}")
+                except Exception as e:
+                    print(e)
+                    print(f"invalid return: {gptscore}")
 
         # save the model-based evaluation results in the prediction file.
-        with open(f"{args.eval_name}", "w", encoding="utf-8") as ff:
-            json.dump(predict, ff, indent=4, ensure_ascii=False)
+        if not args.all_reset:
+            with open(f"{args.eval_name}", "w", encoding="utf-8") as ff:
+                json.dump(predict, ff, indent=4, ensure_ascii=False)
 
+            for typee in strict_acc_scores:
+                print(f"{typee}: {strict_acc_scores[typee] / strict_acc_counts[typee]}")
+            for typee in relax_acc_scores:
+                print(f"{typee}: {relax_acc_scores[typee] / relax_acc_counts[typee]}")
 
-        for typee in strict_acc_scores:
-            print(f"{typee}: {strict_acc_scores[typee] / strict_acc_counts[typee]}")
-        for typee in relax_acc_scores:
-            print(f"{typee}: {relax_acc_scores[typee] / relax_acc_counts[typee]}")
+            print(f"Total upload nums: {pred_nums}")
+            print(f"Total target nums: {len(raw_test_data)}")
 
-        print(f"Total upload nums: {pred_nums}")
-        print(f"Total target nums: {len(raw_test_data)}")
-
-        print(f"Strict accuracy: {strict_acc / len(raw_test_data)}")
-        print(f"Relaxed accuracy: {relaxed_acc / len(raw_test_data)}")
+            print(f"Strict accuracy: {strict_acc / len(raw_test_data)}")
+            print(f"Relaxed accuracy: {relaxed_acc / len(raw_test_data)}")
 
