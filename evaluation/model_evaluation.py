@@ -119,49 +119,49 @@ if __name__ == '__main__':
 
             pred_path = os.path.join(args.results_dir, question_id, args.eval_name)
 
-            if not args.all_reset:
-                if not os.path.exists(pred_path):
-                    continue # no found prediction file
-                else:
 
-                    try:
-                        pred_item = read_json(pred_path)
-                    except json.decoder.JSONDecodeError:
-                        print(question_id)
+            if not os.path.exists(pred_path):
+                continue # no found prediction file
+            else:
+
+                try:
+                    pred_item = read_json(pred_path)
+                except json.decoder.JSONDecodeError:
+                    print(question_id)
+                    continue
+
+                pred_score = pred_item[0]['score']
+                if not args.temp_reset and pred_score != "":
+                    gptscore = pred_score.replace('Answer: ', '').strip()
+                    pred_answer = pred_item[0]['prediction']
+                    if pred_answer is None:
+                        # pred_answer = pred_item[0]['raw_output']
                         continue
+                    pred_nums += 1
+                    if '1' in gptscore:
+                        strict_acc += 1
+                        relaxed_acc += 1
+                    elif '0.5' in gptscore:
+                        strict_acc += 0
+                        relaxed_acc += 0.5
+                    else:
+                        strict_acc += 0
+                        relaxed_acc += 0
 
-                    pred_score = pred_item[0]['score']
-                    if not args.temp_reset and pred_score != "":
-                        gptscore = pred_score.replace('Answer: ', '').strip()
-                        pred_answer = pred_item[0]['prediction']
-                        if pred_answer is None:
-                            # pred_answer = pred_item[0]['raw_output']
-                            continue
-                        pred_nums += 1
+                    for typee in question_types:
                         if '1' in gptscore:
-                            strict_acc += 1
-                            relaxed_acc += 1
+                            strict_acc_scores[typee] += 1
+                            relax_acc_scores[typee] += 1
                         elif '0.5' in gptscore:
-                            strict_acc += 0
-                            relaxed_acc += 0.5
+                            strict_acc_scores[typee] += 0
+                            relax_acc_scores[typee] += 0.5
                         else:
                             strict_acc += 0
                             relaxed_acc += 0
 
-                        for typee in question_types:
-                            if '1' in gptscore:
-                                strict_acc_scores[typee] += 1
-                                relax_acc_scores[typee] += 1
-                            elif '0.5' in gptscore:
-                                strict_acc_scores[typee] += 0
-                                relax_acc_scores[typee] += 0.5
-                            else:
-                                strict_acc += 0
-                                relaxed_acc += 0
-
-                            strict_acc_counts[typee] += 1
-                            relax_acc_counts[typee] += 1
-                        continue # the sample has been evaluated before
+                        strict_acc_counts[typee] += 1
+                        relax_acc_counts[typee] += 1
+                    continue # the sample has been evaluated before
 
             if not args.all_reset:
                 pred_answer = pred_item[0]['prediction']
